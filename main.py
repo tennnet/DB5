@@ -1,135 +1,191 @@
-
 import psycopg2
+from pprint import pprint
 
-def create_db(conn):
-    """Функция, создающая структуру БД (таблицы)"""
+def create_tables(cur):
+    '''Создание таблиц клиентских данных'''
 
-    cur = conn.cursor()
-    cur.execute("""CREATE TABLE IF NOT EXISTS customers(
-        client_id INTEGER UNIQUE PRIMARY KEY,
-        first_name VARCHAR(40),
-        last_name VARCHAR(60),
-        email VARCHAR(60)
-        );""")
-    cur.execute("""CREATE TABLE IF NOT EXISTS phones(
-        id SERIAL PRIMARY KEY,
-        client_id INTEGER REFERENCES customers(client_id),
-        phone VARCHAR(12)
-        );""")
-    conn.commit()  # фиксируем в БД
-
-
-def add_client(conn, client_id, first_name, last_name, email, phones=None):
-    """Функция, позволяющая добавить нового клиента"""
-
-    cur = conn.cursor()
+    #Создание таблицы основных клиентских данных
     cur.execute("""
-    INSERT INTO customers(client_id, first_name, last_name, email) VALUES(%s, %s, %s, %s);
-    """, (client_id, first_name, last_name, email))
-    conn.commit()
-    cur.execute("""
-    SELECT * FROM customers;
+    CREATE TABLE IF NOT EXISTS clients_Homework5(
+    id SERIAL PRIMARY KEY, 
+    client_name VARCHAR(100) NOT NULL, 
+    client_surname VARCHAR(100) NOT NULL, 
+    client_email VARCHAR(100) NOT NULL
+    );
     """)
-    print(cur.fetchall())
+    #Создание отдельной таблицы с клиентскими номерами
     cur.execute("""
-    INSERT INTO phones(client_id, phone) VALUES(%s, %s);
-    """, (client_id, phones))
-    conn.commit()
-    cur.execute("""
-    SELECT * FROM phones;
+    CREATE TABLE IF NOT EXISTS client_phonenumbers(
+    id_phonenumber SERIAL PRIMARY KEY,
+    client_id INTEGER NOT NULL REFERENCES clients_Homework5(id),
+    client_phonenumber VARCHAR(20) UNIQUE);
     """)
-    print(cur.fetchall())
 
 
-def add_phone(conn, client_id, phone):
-    """Функция, позволяющая добавить телефон для существующего клиента"""
 
-    cur = conn.cursor()
+def add_new_client(cur, client_name, client_surname, client_email):
+    '''Добавление нового клиента в таблицу clients_Homework5'''
     cur.execute("""
-    UPDATE phones SET phone=%s WHERE client_id=%s;
-    """, (phone, client_id))
-    conn.commit()  # фиксируем в БД
+    INSERT INTO clients_Homework5(client_name, client_surname, client_email) VALUES(%s, %s, %s);
+    """, (client_name, client_surname, client_email))
 
 
-def change_client(conn, client_id, first_name=None, last_name=None, email=None, phones=None):
-    """Функция, позволяющая изменить данные о клиенте"""
 
-    cur = conn.cursor()
+def add_new_phonenumber(cur, client_id, phonenumber):
+    '''Добавление нового номера телефона в таблицу client_phonenumbers'''
     cur.execute("""
-    UPDATE customers SET first_name=%s, last_name=%s, email=%s WHERE client_id=%s;
-    """, (first_name, last_name, email, client_id))
+    INSERT INTO client_phonenumbers(client_id, client_phonenumber) VALUES(%s, %s);
+    """, (client_id, phonenumber))
+
+
+
+def change_client_data():
+    '''Изменение информации о клиенте'''
+    print("Для изменения информации о клиенте, пожалуйста, введите нужную Вам команду.\n "
+        "1 - изменить имя; 2 - изменить фамилию; 3 - изменить e-mail; 4 - изменить номер телефона")
+
+    while True:
+        command_symbol = int(input())
+        if command_symbol == 1:
+            input_id_for_changing_name = input("Введите id клиента имя которого хотите изменить: ")
+            input_name_for_changing = input("Введите имя для изменения: ")
+            cur.execute("""
+            UPDATE clients_Homework5 SET client_name=%s WHERE id=%s;
+            """, (input_name_for_changing, input_id_for_changing_name))
+            break
+        elif command_symbol == 2:
+            input_id_for_changing_surname = input("Введите id клиента фамилию которого хотите изменить: ")
+            input_surname_for_changing = input("Введите фамилию для изменения: ")
+            cur.execute("""
+            UPDATE clients_Homework5 SET client_surname=%s WHERE id=%s;
+            """, (input_surname_for_changing, input_id_for_changing_surname))
+            break
+        elif command_symbol == 3:
+            input_id_for_changing_email = input("Введите id клиента e-mail которого хотите изменить: ")
+            input_email_for_changing = input("Введите e-mail для изменения: ")
+            cur.execute("""
+            UPDATE clients_Homework5 SET client_email=%s WHERE id=%s;
+            """, (input_email_for_changing, input_id_for_changing_email))
+            break
+        elif command_symbol == 4:
+            input_phonenumber_you_wanna_change = input("Введите номер телефона который Вы хотите изменить: ")
+            input_phonenumber_for_changing = input("Введите новый номер телефона, который заменит собой старый: ")
+            cur.execute("""
+            UPDATE client_phonenumbers SET client_phonenumber=%s WHERE client_phonenumber=%s;
+            """, (input_phonenumber_for_changing, input_phonenumber_you_wanna_change))
+            break
+        else:
+            print("К сожалению, Вы ввели неправильную команду, пожалуйста, повторите ввод")
+
+
+
+def delete_client_phonenumber():
+    '''Удаление номера телефона клиента из таблицы client_phonenumbers'''
+    input_id_for_deleting_phonenumber = input("Введите id клиента номер телефона которого хотите удалить: ")
+    input_phonenumber_for_deleting = input("Введите номер телефона который хотите удалить: ")
+    with conn.cursor() as cur:
+        cur.execute("""
+        DELETE FROM client_phonenumbers WHERE client_id=%s AND client_phonenumber=%s
+        """, (input_id_for_deleting_phonenumber, input_phonenumber_for_deleting))
+
+
+
+def delete_client():
+    '''Удаление имеющейся информации о клиенте'''
+    input_id_for_deleting_client = input("Введите id клиента которого хотите удалить: ")
+    input_client_surname_for_deleting = input("Введите фамилию клиента которого хотите удалить: ")
+    with conn.cursor() as cur:
+        #удаление связи с таблицей client_phonenumbers
+        cur.execute("""
+        DELETE FROM client_phonenumbers WHERE client_id=%s
+        """, (input_id_for_deleting_client,))
+        #удаление информации о клиенте из таблицы clients_Homework5
+        cur.execute("""
+        DELETE FROM clients_Homework5 WHERE id=%s AND client_surname=%s
+        """, (input_id_for_deleting_client, input_client_surname_for_deleting))
+
+
+
+def find_client():
+    '''Поиск клиента по имени'''
+    print("Для поиска информации о клиенте, пожалуйста, введите команду, где:\n "
+          "1 - найти по имени; 2 - найти по фамилии; 3 - найти по e-mail; 4 - найти по номеру телефона")
+    while True:
+        input_command_for_finding = int(input("Введите команду для поиска информации о клиенте: "))
+        if input_command_for_finding == 1:
+            input_name_for_finding = input("Введите имя для поиска информации о клиенте: ")
+            cur.execute("""
+            SELECT id, client_name, client_surname, client_email, client_phonenumber
+            FROM clients_Homework5 AS ch5
+            LEFT JOIN client_phonenumbers AS cp ON cp.id_phonenumber = ch5.id
+            WHERE client_name=%s
+            """, (input_name_for_finding,))
+            print(cur.fetchall())
+        elif input_command_for_finding == 2:
+            input_surname_for_finding = input("Введите фамилию для поиска информации о клиенте: ")
+            cur.execute("""
+            SELECT id, client_name, client_surname, client_email, client_phonenumber
+            FROM clients_Homework5 AS ch5
+            LEFT JOIN client_phonenumbers AS cp ON cp.id_phonenumber = ch5.id
+            WHERE client_surname=%s
+            """, (input_surname_for_finding,))
+            print(cur.fetchall())
+        elif input_command_for_finding == 3:
+            input_email_for_finding = input("Введите email для поиска информации о клиенте: ")
+            cur.execute("""
+            SELECT id, client_name, client_surname, client_email, client_phonenumber
+            FROM clients_Homework5 AS ch5
+            LEFT JOIN client_phonenumbers AS cp ON cp.id_phonenumber = ch5.id
+            WHERE client_email=%s
+            """, (input_email_for_finding,))
+            print(cur.fetchall())
+        elif input_command_for_finding == 4:
+            input_phonenumber_for_finding = input("Введите номер телефона для поиска информации о клиенте: ")
+            cur.execute("""
+            SELECT id, client_name, client_surname, client_email, client_phonenumber
+            FROM clients_Homework5 AS ch5
+            LEFT JOIN client_phonenumbers AS cp ON cp.id_phonenumber = ch5.id
+            WHERE client_phonenumber=%s
+            """, (input_phonenumber_for_finding,))
+            #return cur.fetchone()[0]
+            print(cur.fetchall())
+        else:
+            print("К сожалению, Вы ввели неправильную команду, пожалуйста, повторите ввод")
+
+
+
+def check_function(cur):
+    '''Проверочная функция, отображает содержимое таблиц'''
     cur.execute("""
-    SELECT * FROM customers;
+    SELECT * FROM clients_Homework5;
     """)
-    print(cur.fetchall())
+    pprint(cur.fetchall())
     cur.execute("""
-    UPDATE phones SET phone=%s WHERE client_id=%s;
-    """, (phones, client_id))
-    cur.execute("""
-    SELECT * FROM phones;
+    SELECT * FROM client_phonenumbers;
     """)
-    print(cur.fetchall())  # запрос данных автоматически зафиксирует изменения
+    pprint(cur.fetchall())
+
+#check_function()
 
 
-def delete_phone(conn, client_id):
-    """Функция, позволяющая удалить телефон для существующего клиента"""
 
-    cur = conn.cursor()
-    cur.execute("""
-    UPDATE phones SET phone=%s WHERE client_id=%s;
-    """, ('Null', client_id))
-    cur.execute("""
-    SELECT * FROM phones;
-    """)
-    print(cur.fetchall())  # запрос данных автоматически зафиксирует изменения
+with psycopg2.connect(host="127.0.0.1", user="postgres", password="wsxzaq!1", database="HomeWork5", port="5432") as conn:
+    with conn.cursor() as cur:
+        create_tables(cur)
+        check_function(cur)
+        add_new_client(cur, "Oliver", "Williams", "ol@g.com")
+        add_new_client(cur, "Brian", "Kelly", "br@g.com")
+        add_new_client(cur, "Jack", "Gibson", "ja@g.com")
+        add_new_client(cur, "Edward", "Graham", "ed@g.com")
+        add_new_client(cur, "Charley", "Grant", "ch@g.com")
+        add_new_phonenumber(cur, 1, "11111111")
+        add_new_phonenumber(cur, 2, "222222222")
+        add_new_phonenumber(cur, 3, "3333333333")
+        add_new_phonenumber(cur, 4, "44444444444")
+        add_new_phonenumber(cur, 5, "555555555555")
+        change_client_data()
+        delete_client_phonenumber()
+        delete_client()
+        find_client()
 
-
-def delete_client(conn, client_id):
-    """Функция, позволяющая удалить существующего клиента"""
-
-    cur = conn.cursor()
-    cur.execute("""
-    DELETE FROM phones WHERE client_id=%s;
-    """, (client_id,))
-    cur.execute("""
-    SELECT * FROM phones;
-    """)
-    print(cur.fetchall())
-    cur = conn.cursor()
-    cur.execute("""
-    DELETE FROM customers WHERE client_id=%s;
-    """, (client_id,))
-    cur.execute("""
-    SELECT * FROM customers;
-    """)
-    print(cur.fetchall())  # запрос данных автоматически зафиксирует изменения
-
-
-def find_client(conn, first_name=None, last_name=None, email=None, phone=None):
-    """Функция, позволяющая найти клиента по его данным (имени, фамилии, email-у или телефону)"""
-
-    cur = conn.cursor()
-    cur.execute("""
-    SELECT * FROM customers c JOIN phones p ON c.client_id = p.client_id WHERE first_name=%s OR last_name=%s 
-    OR email=%s OR p.phone=%s;
-    """, (first_name, last_name, email, phone))
-    print(cur.fetchall())
-
-
-with psycopg2.connect(database="clients_db", user="postgres", password="postgres") as conn:
-    create_db(conn)
-    add_client(conn, 1, 'Anton', 'Naumov', 'anton.naumov@inbox.ru', '+79633045137')
-    add_client(conn, 2, 'Maksim', 'Naumov', 'maksim.naumov@inbox.ru', '+79668485723')
-    add_client(conn, 3, 'Maksim', 'Naumov', 'maksim.naumov@google.com')
-    add_client(conn, 4, 'Sergey', 'Rodygin', 'rodygin.sergey@mail.ru')
-    add_client(conn, 'Ivan', 'Ivanov', 'ivan.ivanov@mail.ru', '+7965555555')
-    add_phone(conn, 3, '+79650449020')
-    add_phone(conn, 4, '+79650449022')
-    change_client(conn, 1, 'Artem', 'Naumov', 'anton.naumov@inbox.ru', '+79633045137')
-    change_client(conn, 4, first_name='Ivan', last_name='Petrov', email='ivan.petrov@gmail.com', phones='+79650449022')
-    delete_phone(conn, 1)
-    delete_client(conn, 4)
-    find_client(conn, first_name='Artem')
-    find_client(conn, last_name='Naumov')
-    find_client(conn, email='anton.naumov@inbox.ru')
-    find_client(conn, phone='+79650449020')
+conn.close()
